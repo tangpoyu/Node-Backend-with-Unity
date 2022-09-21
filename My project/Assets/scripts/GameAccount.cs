@@ -2,11 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameAccount : MonoBehaviour
+[System.Serializable]
+public class GameAccount
 {
     public string _id;
+    public int permission;
     public string username;
-    public int adminFlag;
+    public bool active;
 
     public void Load(string jsonString)
     {

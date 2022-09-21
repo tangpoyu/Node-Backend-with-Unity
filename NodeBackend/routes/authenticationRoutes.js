@@ -1,35 +1,43 @@
 
 const argon2i = require('argon2-ffi').argon2i;
 const myCrypto = require('crypto');
+const passwordRegex = new RegExp("(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9])(?=.{8,24})");
 
 module.exports = function(app, mongoose) { 
 
     const Account = mongoose.model('accounts')
     app.post('/account/login', async (req, res) => {
+            
             const { rusername, rpassword } = req.body;
     
             if (rusername == null || rpassword == null || rusername == "" || rpassword == "") {
-                console.log("no input");
-                res.send("-1") // no input
+                sendResponse(res,-1,"no input")
+                return;
+            }
+
+            if(rusername.length < 8 || rusername.length > 24 || !passwordRegex.test(rpassword)){
+                console.log("Invalid credentials");
+                sendResponse(res,-2,"Invalid credentials.");
                 return;
             }
     
-            var userAccount = await Account.findOne({ username: rusername });
+            var userAccount = await Account.findOne({ username: rusername },'_id');
             if (userAccount != null) {
+                var userAccount = await Account.findOne({ username: rusername },'permission username active password');
                 argon2i.verify(userAccount.password, rpassword).then(async(isCorrect) => {
                     if (isCorrect) {
                         userAccount.lastAuthentication = Date.now();
                         await userAccount.save();
                         console.log("Retrieving account...");
-                        res.send(userAccount);
+                        sendResponse(res,0,"Retrieving account",(({_id,permission,username,active}) => ({_id,permission,username,active}))(userAccount));
                     } else {
                         console.log("password error")
-                        res.send("-2") // password error
+                        sendResponse(res,-2,"Invalid credentials.");
                     }
                 })
             } else {
                     console.log("username error")
-                    res.send("-2") // username error
+                    sendResponse(res,-2,"Invalid credentials.");
             }
     })
 
@@ -38,11 +46,23 @@ module.exports = function(app, mongoose) {
 
         if (rusername == null || rpassword == null || rusername == "" || rpassword == "") {
             console.log("no input");
-            res.send("-1") // no input
+            sendResponse(res,-1,"no input")
             return;
         }
 
-        var userAccount = await Account.findOne({ username: rusername });
+        if(rusername.length < 8 || rusername.length > 24){
+            console.log("Invalid credentials");
+            sendResponse(res,-2,"Invalid credentials.");
+            return;
+        }
+
+        if(!passwordRegex.test(rpassword)){
+            console.log("Unsafe password");
+            sendResponse(res,-3,"Unsafe password.");
+            return;
+        }
+
+        var userAccount = await Account.findOne({ username: rusername },"_id");
         if (userAccount == null) {
 
             // Generate a unique salt which is array of 32 bytes for every account with function of randomByte of crypto 
@@ -54,13 +74,13 @@ module.exports = function(app, mongoose) {
                         permission: 0,
                         username: rusername,
                         password: hashedPassword,
-                        salt: salt,
                         lastAuthentication: Date.now(),
                         active: true
                     })
                     await newAccount.save();
+                    console.log(newAccount);
                     console.log("Create new account...");
-                    res.send(newAccount);
+                    sendResponse(res,0,"Create new account...",(({_id,permission,username,active}) => ({_id,permission,username,active}))(newAccount))
                     return;
                 })
             })
@@ -68,9 +88,16 @@ module.exports = function(app, mongoose) {
            
         } else {
             console.log("This username is taken");
-            res.send("-2"); //This username is taken.
+            sendResponse(res,-2,"Invalid credentials.");
             return;
         }
 })
 }
 
+function sendResponse(res,code, msg, data=null){
+    var response = {};
+    response.code = code;
+    response.msg = msg;
+    if(data != null) response.data = data;
+    res.send(response);
+}

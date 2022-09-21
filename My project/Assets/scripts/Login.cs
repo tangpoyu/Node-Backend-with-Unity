@@ -4,12 +4,14 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.Networking;
+using System.Text.RegularExpressions;
 
 public class Login : MonoBehaviour
 {
     [SerializeField] private TMP_InputField username, password;
     [SerializeField] private Button loginButton, signUpButton;
     private GameAccount gameAccount;
+    private const string PASSWORD_REGEX = "(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9])(?=.{8,24})";
 
     private void Awake()
     {
@@ -22,6 +24,12 @@ public class Login : MonoBehaviour
         string username = this.username.text;
         string password = this.password.text;
 
+        if (password == "" || username.Length < 8 || username.Length > 24 || !Regex.IsMatch(password, PASSWORD_REGEX))
+        {
+            Debug.Log("Invalid credentials.");
+            yield break;
+        }
+
         WWWForm form = new WWWForm();
         form.AddField("rusername", username);
         form.AddField("rpassword", password);
@@ -33,22 +41,29 @@ public class Login : MonoBehaviour
             
             if (request.result == UnityWebRequest.Result.Success)
             {
-                switch (request.downloadHandler.text)
+                LoginResponse response = new LoginResponse();
+                response.Load(request.downloadHandler.text);
+
+                switch (response.code)
                 {
-                    case "-1":
+                    case 0:
+                        gameAccount = response.data;
+                        Debug.Log($"Welcome !");
+                        Debug.Log((gameAccount.permission == 1) ? "you are admin." : "");
+                        break;
+
+                    case -1:
                         Debug.Log("no input");
                         break;
 
-                    case "-2":
-                        Debug.Log("password or username error");
+                    case -2:
+                        Debug.Log("Invalid credentials.");
                         break;
 
                     default:
-                        gameAccount = new GameAccount();
-                        gameAccount.Load(request.downloadHandler.text);
-                        Debug.Log($"Welcome {gameAccount.username}! your id is : {gameAccount._id}.");
-                        Debug.Log((gameAccount.adminFlag == 1)? "you are admin." : "");
+                        Debug.Log("Corruption detected.");
                         break;
+                     
                 }
              
             }
@@ -65,6 +80,14 @@ public class Login : MonoBehaviour
         string username = this.username.text;
         string password = this.password.text;
 
+
+        if (password == "" || username.Length < 8 || username.Length > 24 || !Regex.IsMatch(password, PASSWORD_REGEX))
+        {
+            Debug.Log("Invalid credentials.");
+            yield break;
+        }
+
+
         WWWForm form = new WWWForm();
         form.AddField("rusername", username);
         form.AddField("rpassword", password);
@@ -76,21 +99,30 @@ public class Login : MonoBehaviour
 
             if (request.result == UnityWebRequest.Result.Success)
             {
-                switch (request.downloadHandler.text)
+                LoginResponse response = new LoginResponse();
+                response.Load(request.downloadHandler.text);
+
+                switch (response.code)
                 {
-                    case "-1":
+                    case 0:
+                        Debug.Log($"Welcome!");
+                        Debug.Log((response.data.permission == 1) ? "you are admin." : "");
+                        break;
+
+                    case -1:
                         Debug.Log("no input");
                         break;
 
-                    case "-2":
-                        Debug.Log("This username is taken.");
+                    case -2:
+                        Debug.Log("Invalid credentials.");
+                        break;
+
+                    case -3:
+                        Debug.Log("Unsafe password.");
                         break;
 
                     default:
-                        gameAccount = new GameAccount();
-                        gameAccount.Load(request.downloadHandler.text);
-                        Debug.Log($"Welcome {gameAccount.username}! your id is : {gameAccount._id}.");
-                        Debug.Log((gameAccount.adminFlag == 1) ? "you are admin." : "");
+                        Debug.Log("Corruption detected.");
                         break;
                 }
 

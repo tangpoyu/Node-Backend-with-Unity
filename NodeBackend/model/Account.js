@@ -1,5 +1,5 @@
-module.exports = function(mongoose) {
-    
+module.exports = function (mongoose) {
+
     const { Schema } = mongoose;
     const accountSchema = new Schema({
         permission: Number,
@@ -8,7 +8,7 @@ module.exports = function(mongoose) {
         lastAuthentication: Date,
         active: Boolean
     });
-    
+
     mongoose.model('accounts', accountSchema);
 }
 
